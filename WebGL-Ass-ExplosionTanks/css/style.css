@@ -1,0 +1,17 @@
+/**
+ * html and body, css reset
+ */
+html, body
+{
+ margin:0;
+ padding:0;
+ overflow:hidden;
+}
+/**
+ * canvas appended to body from threejs
+ */
+canvas
+{
+ width:100vw;
+ height:100vh;
+}

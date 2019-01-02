@@ -1,0 +1,25 @@
+#
+# IS7.mtl
+#
+
+newmtl Material01
+illum 2
+Kd 0.800000 0.800000 0.800000
+Ka 0.200000 0.200000 0.200000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ns 0.000000
+map_Kd KV_track.png
+bump KV_track_SM.png
+map_Ks KV_track_NM.png
+
+newmtl Material02
+illum 2
+Kd 0.800000 0.800000 0.800000
+Ka 0.200000 0.200000 0.200000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ns 0.000000
+map_Kd IS-7.png
+bump IS-7_NM.png
+map_Ks IS-7_SM.png
