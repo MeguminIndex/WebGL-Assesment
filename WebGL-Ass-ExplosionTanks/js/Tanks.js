@@ -4,17 +4,22 @@ var ausfLoaded = false;
 var tanksGenerated = false;
 var tankBase ,togBase,ausfBase,BTR;//once the models loaded it will be coped here;
 
-var numTanks = 50;
+var numTanks = 40;//alters size of grid
+var tankSpeed = 20;
 //the tanks in scene
 var tankRendered;
 var tanksArray;
 var tanksCollisionDist = 5;
 
 
+var maxDisAway = 700;
+var centerPoint = new THREE.Vector3(0,0,0);
+
+
 //particle stuff
 var yParticalKillThresh = -1;
 var minYellowThresh = -1, maxYellowThresh = 2;
-var yellowIncreaseAmmount = 0.4;
+var yellowIncreaseAmmount = 0.6;
 var increseYellow = true;
 var particleTint = new THREE.Vector3(10,0,0);
 var boxMat;
@@ -25,8 +30,8 @@ var explosionObject; //will be where the object spawn for explosion particles is
 var particleList = [];//stores all created particles
 var particlesVelocities = [];//stores all the particles velocities
 var maxParticleRemoveThresh = 10;
-
-
+var minParticleSize = 0.2;
+var particalsPerExplosion = 25;
 
 function InitSceneTanks(object,objectTwo,objectThree)
 {
@@ -40,7 +45,7 @@ console.log("INIT TANKS");
 
     var index  = 0;
 
-    var tmp;
+    //var tmp;
 
     for(let i =0; i <numTanks; i++)
     {
@@ -48,30 +53,42 @@ console.log("INIT TANKS");
         for(let j =0; j < numTanks; j++)
         {   
             //var tmp;
+
+            
+
+            var x = 20*i -(20 * numTanks/2) ;
+            var z =  20*j - (20 * numTanks/2) ;
+
+            var rotY = Math.floor((Math.random()*360));
+
+
+
             var rng = Math.floor((Math.random() * 14) +1);
             if(rng >10)
             {
-                tmp = objectThree.clone();
+                //tmp = objectThree.clone();
+                AddTank(object,x,z,rotY);
             }
             else if(rng > 5)
             {
-            //var tmp = object.clone();
-                tmp = objectTwo.clone(); 
-
+            
+                //tmp = objectTwo.clone(); 
+                AddTank(objectTwo,x,z,rotY);
             }
             else
             {
-                tmp = object.clone();
+                //tmp = object.clone();
+                AddTank(object,x,z,rotY);
             }
            
-            tmp.position.x = 20*i -(20 * numTanks/2) ;
-            tmp.position.z =  20*j - (20 * numTanks/2) ;
+            // tmp.position.x = 20*i -(20 * numTanks/2) ;
+            // tmp.position.z =  20*j - (20 * numTanks/2) ;
 
-            tmp.rotation.y += Math.floor((Math.random()*360));
+            // tmp.rotation.y += Math.floor((Math.random()*360));
 
-            tanksArray[index] = tmp;
-            tankRendered[index] = true;
-            scene.add(tanksArray[index]);
+            // tanksArray[index] = tmp;
+            // tankRendered[index] = true;
+            // scene.add(tanksArray[index]);
 
             index++;
         }
@@ -82,26 +99,56 @@ console.log("INIT TANKS");
     tanksGenerated = true;
 }
 
-function updateTanks()
-{
 
-    
-    var size = tanksArray.length-1;
+function AddTank(obj,x,z,rotY)
+{   
+    var tmp = obj.clone();
+    tmp.position.x = x ;
+    tmp.position.z = z ;
+
+    tmp.rotation.y += rotY;
+
+    var size = tanksArray.length;
+    tanksArray[size] = tmp;
+    tankRendered[size] = true;
+    scene.add(tanksArray[size]);
+}
+
+function updateTanks()
+{   
+    var size = tanksArray.length;
 
     var tankDirection = new THREE.Vector3(1,0,0);
 
-     explosionObject.position = tanksArray[0].position.add(tankDirection);
+    // explosionObject.position = tanksArray[0].position.add(tankDirection);
 
     for(let i = 0; i<size; i++)
     {
 
+      //  var centerPoint = new THREE.Vector3(0,0,0);
+     
         if(tankRendered[i] == true)
         {
+
+
+            var d = centerPoint.distanceTo(tanksArray[i].position)
+        
+
+            if( d > maxDisAway)
+            {   
+                tanksArray[i].lookAt(centerPoint.x,centerPoint.y,centerPoint.z);
+            }
+    
+    
+
+
             tanksArray[i].getWorldDirection(tankDirection);
 
-            tankDirection.multiplyScalar(20);
+            tankDirection.multiplyScalar(tankSpeed);
             tankDirection.multiplyScalar(deltaTime);
             tanksArray[i].position = tanksArray[i].position.add(tankDirection);
+
+
 
         }
     }
@@ -128,7 +175,7 @@ function CheckTankCollision()
                     {
                                // console.log("collision occured");
                                tankRendered[i] = false;
-                                SpawnParticles(tanksArray[j].position.x,tanksArray[j].position.y,tanksArray[j].position.z,15);
+                                SpawnParticles(explosionObject,tanksArray[j].position.x,tanksArray[j].position.y,tanksArray[j].position.z,particalsPerExplosion);
                                 scene.remove(tanksArray[i]);
 
 
@@ -170,7 +217,8 @@ function ResetTanks()
 
 }
 
-function SpawnParticles(x,y,z, numParticles)
+//Spawns particvles
+function SpawnParticles(object,x,y,z, numParticles)
 {
    // exparticlesVelocities = object.clone();
     
@@ -181,22 +229,26 @@ function SpawnParticles(x,y,z, numParticles)
 
             particlesVelocities.push(tmpVel);
 
-            var tmp = explosionObject.clone();
+            var tmp = object.clone();
 
             var tmpRng = Math.random();
-            if(tmpRng < 0.1)
-                tmpRng = 0.1;
+            if(tmpRng < minParticleSize)
+                tmpRng = minParticleSize;
+
+            
             tmp.scale.x = tmpRng;
-
+            
             tmpRng = Math.random();
-            if(tmpRng < 0.1)
-                tmpRng = 0.1;
-
+            if(tmpRng < minParticleSize)
+                tmpRng = minParticleSize;
+           
             tmp.scale.y = tmpRng;
 
-                tmpRng = Math.random();
-            if(tmpRng < 0.1)
-                tmpRng = 0.1;
+            tmpRng = Math.random();
+            if(tmpRng < minParticleSize)
+                tmpRng = minParticleSize;
+            
+            
             tmp.scale.z = tmpRng;
 
 
@@ -229,16 +281,16 @@ function UpdateParticles()
    
     var size = particleList.length;
 
-    if(particleTint.z < minYellowThresh)
+    if(particleTint.y < minYellowThresh)
         increseYellow = true;
-    else if(particleTint.z > maxYellowThresh)
+    else if(particleTint.y > maxYellowThresh)
         increseYellow = false;
 
 
     if(increseYellow)
-    particleTint.z += yellowIncreaseAmmount *deltaTime;
+    particleTint.y += yellowIncreaseAmmount *deltaTime;
     else
-    particleTint.z -= yellowIncreaseAmmount *deltaTime;
+    particleTint.y -= yellowIncreaseAmmount *deltaTime;
 
     //console.log(size);
     //console.log(particlesVelocities.length);
