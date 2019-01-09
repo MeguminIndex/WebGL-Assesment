@@ -4,9 +4,7 @@
 //add eent listner to call my on load function
 window.addEventListener("load",initScene);
 
-
 //window.addEventListener("wheel",ScrollWheel);
-
 //THREE SCENE!!!!
 var scene = new THREE.Scene();
 
@@ -21,16 +19,39 @@ var lastTime =0;
 //var currentTime;
 
 var currentTimePassed =0;
-var timeDelay = 0.1;
+var timeDelay = 0.2;
 
+
+var isLoaded = false;
+var togLoaded = false;
 var tanksGenerated = false;
 var tankBase;//once the models loaded it will be coped here;
-var numTanks = 60;
+var togBase;
+var numTanks = 50;
 //the tanks in scene
+var tankRendered;
 var tanksArray;
-var tanksCollisionDist = 2.5;
+var tanksCollisionDist = 4;
 
 var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+//particle stuff
+var yParticalKillThresh = -1;
+var minYellowThresh = -1, maxYellowThresh = 2;
+var yellowIncreaseAmmount = 0.4;
+var increseYellow = true;
+var particleTint = new THREE.Vector3(10,0,0);
+var boxMat;
+var box;
+
+var particalGravity = new THREE.Vector3(0,2,0);
+var explosionObject; //will be where the object spawn for explosion particles is stored
+var particleList = [];//stores all created particles
+var particlesVelocities = [];//stores all the particles velocities
+var maxParticleRemoveThresh = 10;
+
+
+//END PARTICLES
 
 //OBJECT LOADING
 var objLoader;
@@ -44,13 +65,14 @@ var mtlLoader;
 
 var deltaTime;
 
+
 //init function
 function initScene(e)
 {
-    
-
+    particleList =[];
+    particlesVelocities =[];
+   
     console.log("INIT CALLED");
-
     renderer.setSize(window.innerWidth,window.innerHeight);
     //add canvas to body of webpage so can render into it
     document.body.appendChild(renderer.domElement);
@@ -67,22 +89,46 @@ function initScene(e)
 
     objLoader = new THREE.OBJLoader();
 
-    
-
-
 
     mtlLoader = new THREE.MTLLoader();
     mtlLoader.setPath('models/WoT_IS7/');
     mtlLoader.load('IS7.mtl',function(materials){
-        materials.preload();
+    materials.preload();
 
         var tmpobjLoader = new THREE.OBJLoader();
         tmpobjLoader.setMaterials(materials);
         tmpobjLoader.setPath('models/WoT_IS7/');
         tmpobjLoader.load('IS7.obj', function(object)
         {
+            console.log("Loded IS");
+            tankBase = object.clone();
+           // InitSceneTanks(object);
+           isLoaded = true;
 
-            InitSceneTanks(object);
+           if(isLoaded == true && togLoaded == true & tanksGenerated == false)
+           InitSceneTanks(tankBase,togBase);
+            //object.rotation.y =90;
+           // scene.add(object);
+        },onProgress,ObjectError);
+
+    });
+
+
+    mtlLoader.setPath('models/TOG/');
+    mtlLoader.load('tog_II.mtl',function(materials){
+        materials.preload();
+
+        var tmpobjLoader = new THREE.OBJLoader();
+        tmpobjLoader.setMaterials(materials);
+        tmpobjLoader.setPath('models/TOG/');
+        tmpobjLoader.load('tog_II.obj', function(object)
+        {
+            console.log("LOADED TOGS");
+            togBase = object.clone();
+            togLoaded = true;
+
+           if(isLoaded == true && togLoaded == true & tanksGenerated == false)
+           InitSceneTanks(tankBase,togBase);
             
 
             //object.rotation.y =90;
@@ -91,53 +137,36 @@ function initScene(e)
 
     });
 
+    //create a cube for particles
+    box = new THREE.BoxGeometry(1,1,1);
+    //grab my shaders
+    var shaders = ShaderLoader.getShaders('shaders/default.vert', 'shaders/diffuse.frag');
 
+    boxMat = new THREE.ShaderMaterial({
+        uniforms:{
+            pColour: {type:"v3", value: particleTint},
+            lightDir: {type:"v3", value: lightDirection}
+    
+    },
+        vertexShader: shaders.vertex,
+        fragmentShader: shaders.fragment
 
-   
-
-
-    //  var textureShader = ShaderLoader.getShaders('shaders/textured.vert', 'shaders/textured.frag');
-
-
-    //  tankMaterial  = new THREE.ShaderMaterial({
-    //      uniforms:
-    //     {
-    //         mainTexture: { type:"t", value: isSevenDiffuse },
-    //         lightDir : { type:"v3", value: lightDirection }
-    //     },
-    //         vertexShader: textureShader.vertex,
-    //         fragmentShader: textureShader.fragment
-    //     });
-        
-
-
-    //create a cubve
-    //var box = new THREE.BoxGeometry(1,1,1);
-
-    // var shaders = ShaderLoader.getShaders('shaders/default.vert', 'shaders/diffuse.frag');
-
-    // material = new THREE.ShaderMaterial({
-    //     uniforms:{},
-    //     vertexShader: shaders.vertex,
-    //     fragmentShader: shaders.fragment
-
-    // });
-
+    });
 
     //var geometry = new THREE.BoxGeometry( .5, .5, .5 );
     //Create a (1x1x1) cube geometry
     //var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     //Create a mesh from this geometry and material
-   // cube = new THREE.Mesh(geometry, material);
+    explosionObject = new THREE.Mesh(box, boxMat);
     //Add the cube to the scene
-    //scene.add( cube );
+    
+    //scene.add( explosionObject );
     //Position the camera behind the cube and call update initially
 
-camYPos +=20;
+
 
     camera.position.z = camZPos;
-    camera.position.y = camYPos;
-    
+    camera.position.y = camYPos;   
 
     //manually set some cells
 
@@ -149,33 +178,100 @@ camYPos +=20;
 }
 
 
-
-function InitSceneTanks(object)
+function SpawnParticles(x,y,z, numParticles)
 {
-    tankBase = object.clone();
+   // exparticlesVelocities = object.clone();
+    
+
+    for(let p=0; p <numParticles; p++)
+    {
+            var tmpVel = new THREE.Vector3(Math.floor((Math.random() * 20) -10),Math.floor((Math.random() * 40) -5),Math.floor((Math.random() * 20) -10));
+
+            particlesVelocities.push(tmpVel);
+
+            var tmp = explosionObject.clone();
+
+            var tmpRng = Math.random();
+            if(tmpRng < 0.1)
+                tmpRng = 0.1;
+            tmp.scale.x = tmpRng;
+
+            tmpRng = Math.random();
+            if(tmpRng < 0.1)
+                tmpRng = 0.1;
+
+            tmp.scale.y = tmpRng;
+
+                tmpRng = Math.random();
+            if(tmpRng < 0.1)
+                tmpRng = 0.1;
+            tmp.scale.z = tmpRng;
+
+
+            tmp.position.x = x;
+            tmp.position.y = y;
+            tmp.position.z = z;
+
+       
+
+            tmp.rotation.x = Math.floor((Math.random()*360));
+            tmp.rotation.y = Math.floor((Math.random()*360));
+            tmp.rotation.z = Math.floor((Math.random()*360));
+
+            particleList.push(tmp);
+            
+            scene.add(particleList[particleList.length-1]);
+    }
+         
+       
+
+
+    
+
+   
+}
+
+
+
+function InitSceneTanks(object,objectTwo)
+{
+    
 console.log("INIT TANKS");
 
     //tanksArray = new Array(numTanks * numTanks);
     tanksArray = [];
-
+    tankRendered = [];
     var x = 1, z = 1;
 
     var index  = 0;
+
+    var tmp;
 
     for(let i =0; i <numTanks; i++)
     {
 
         for(let j =0; j < numTanks; j++)
-        {
-            var tmp = object.clone();
+        {   
+            //var tmp;
+            var rng = Math.floor((Math.random() * 10) +1);
+            if(rng > 5)
+            {
+            //var tmp = object.clone();
+                tmp = togBase.clone(); 
 
+            }
+            else
+            {
+                tmp = tankBase.clone();
+            }
+           
             tmp.position.x = 20*i -(20 * numTanks/2) ;
             tmp.position.z =  20*j - (20 * numTanks/2) ;
 
             tmp.rotation.y = Math.floor((Math.random()*360));
 
             tanksArray[index] = tmp;
-            
+            tankRendered[index] = true;
             scene.add(tanksArray[index]);
 
             index++;
@@ -186,6 +282,64 @@ console.log("INIT TANKS");
 
     tanksGenerated = true;
 }
+
+
+function UpdateParticles()
+{
+   
+    var size = particleList.length;
+
+    if(particleTint.y < minYellowThresh)
+        increseYellow = true;
+    else if(particleTint.y > maxYellowThresh)
+        increseYellow = false;
+
+
+    if(increseYellow)
+    particleTint.y += yellowIncreaseAmmount *deltaTime;
+    else
+    particleTint.y -= yellowIncreaseAmmount *deltaTime;
+
+    //console.log(size);
+    //console.log(particlesVelocities.length);
+   for(let p= 0; p < size; p++)
+   {    
+
+    particlesVelocities[p].x -= particalGravity.x; 
+    particlesVelocities[p].y -= particalGravity.y;
+    particlesVelocities[p].z -= particalGravity.z;
+    
+    //particleTint.multiply(particlesVelocities[p]);
+
+    particleList[p].material.uniforms.pColour.value = particleTint;
+    //particleList[p].material.uniforms.pColour.value = particleTint.multiply(particlesVelocities[p]);
+    particleList[p].material.uniforms.lightDir.value = lightDirection;
+
+      particleList[p].position.x += particlesVelocities[p].x * deltaTime;
+      particleList[p].position.y += particlesVelocities[p].y* deltaTime;
+      particleList[p].position.z += particlesVelocities[p].z* deltaTime;
+      
+   }
+
+
+   for(let bp =size-1; bp >=0; bp--)
+   {
+
+    if(particleList[bp].position.y < yParticalKillThresh)
+    {   
+        scene.remove(particleList[bp]);
+        particleList.splice(bp, 1);
+        particlesVelocities.splice(bp,1);
+    }
+
+
+
+
+   }
+
+
+}
+
 
 
 
@@ -215,9 +369,10 @@ lastTime = currentTime;
 function UpdateGame()
 {
     if(tanksGenerated == true)
-    updateTanks();
-
-
+    {
+        updateTanks();
+        UpdateParticles();
+    }
     camera.position.z = camZPos;
     camera.position.y = camYPos;
     camera.position.x = camXPos;
@@ -229,7 +384,25 @@ function UpdateGame()
         return;
     }
     
-   
+
+
+//    if(particleList.length > 0)
+//    {
+//     var s = particleList.length;
+
+//     if(s > maxParticleRemoveThresh)
+//         s= maxParticleRemoveThresh;
+
+//      for(let i =0; i <s; i++)
+//      {
+//          scene.remove(particleList[i]);
+//      }
+
+//     particleList.splice(0, s);
+//     particlesVelocities.splice(0,s);
+
+//     console.log("Slicy");
+//    }
     
     currentTimePassed = 0;
 
@@ -239,23 +412,28 @@ function UpdateGame()
 function updateTanks()
 {
 
-
+    
     var size = tanksArray.length-1;
 
-    var tankDirection = new THREE.Vector3();
+    var tankDirection = new THREE.Vector3(1,0,0);
+
+     explosionObject.position = tanksArray[0].position.add(tankDirection);
 
     for(let i = 0; i<size; i++)
     {
-        tanksArray[i].getWorldDirection(tankDirection);
 
-        tankDirection.multiplyScalar(20);
-        tankDirection.multiplyScalar(deltaTime);
-        tanksArray[i].position = tanksArray[i].position.add(tankDirection);
+        if(tankRendered[i] == true)
+        {
+            tanksArray[i].getWorldDirection(tankDirection);
+
+            tankDirection.multiplyScalar(20);
+            tankDirection.multiplyScalar(deltaTime);
+            tanksArray[i].position = tanksArray[i].position.add(tankDirection);
 
         //tanksArray[i].rotation.y = Math.floor((Math.random()*360));
 
         //console.log(tankDirection.multiplyScalar(20));
-
+        }
     }
 
     CheckTankCollision();
@@ -276,14 +454,16 @@ function CheckTankCollision()
             {
 
                 
-                    if(tanksArray[i].position.distanceTo(tanksArray[j].position) < tanksCollisionDist)
+                    if(tanksArray[i].position.distanceTo(tanksArray[j].position) < tanksCollisionDist && tankRendered[i] == true && tankRendered[j] == true)
                     {
                                // console.log("collision occured");
-
+                               tankRendered[i] = false;
+                                SpawnParticles(tanksArray[j].position.x,tanksArray[j].position.y,tanksArray[j].position.z,20);
                                 scene.remove(tanksArray[i]);
                                // tanksArray.splice(i,1);
 
                                // console.log("i: " + i + " J: " + j);
+
                     }
                     
 

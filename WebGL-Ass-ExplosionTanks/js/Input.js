@@ -4,7 +4,7 @@ window.addEventListener("wheel",ScrollWheel);
 window.addEventListener("keydown",Input);
 
 var camSpeed = 50;
-var camZPos = 100, camYPos = 0, camXPos =0;
+var camZPos = 100, camYPos = 15, camXPos =0;
 
 
 
