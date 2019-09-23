@@ -6,9 +6,6 @@ window.addEventListener("load",initScene);
 var scene = new THREE.Scene();
 var ambientLight;
 
-//perspective camera
-//var camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
-
 //creates a render
 var renderer = new THREE.WebGLRenderer({antialias:true});
 
@@ -18,36 +15,6 @@ var lastTime =0;
 var currentTimePassed =0;
 var timeDelay = 0.2;
 
-
-// var isLoaded = false;
-// var togLoaded = false;
-// var ausfLoaded = false;
-// var tanksGenerated = false;
-// var tankBase ,togBase,ausfBase,BTR;//once the models loaded it will be coped here;
-
-// var numTanks = 50;
-// //the tanks in scene
-// var tankRendered;
-// var tanksArray;
-// var tanksCollisionDist = 5;
-
-// //particle stuff
-// var yParticalKillThresh = -1;
-// var minYellowThresh = -1, maxYellowThresh = 2;
-// var yellowIncreaseAmmount = 0.4;
-// var increseYellow = true;
-// var particleTint = new THREE.Vector3(10,0,0);
-// var boxMat;
-// var box;
-
-// var particalGravity = new THREE.Vector3(0,50,0);
-// var explosionObject; //will be where the object spawn for explosion particles is stored
-// var particleList = [];//stores all created particles
-// var particlesVelocities = [];//stores all the particles velocities
-// var maxParticleRemoveThresh = 10;
-
-
-//END PARTICLES
 
 //OBJECT LOADING
 var objLoader;

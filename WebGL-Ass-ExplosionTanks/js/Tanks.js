@@ -33,6 +33,7 @@ var maxParticleRemoveThresh = 10;
 var minParticleSize = 0.2;
 var particalsPerExplosion = 25;
 
+
 function InitSceneTanks(object,objectTwo,objectThree)
 {
     
@@ -220,8 +221,8 @@ function ResetTanks()
 //Spawns particvles
 function SpawnParticles(object,x,y,z, numParticles)
 {
+
    // exparticlesVelocities = object.clone();
-    
 
     for(let p=0; p <numParticles; p++)
     {
@@ -268,10 +269,6 @@ function SpawnParticles(object,x,y,z, numParticles)
     }
          
        
-
-
-    
-
    
 }
 
@@ -337,4 +334,3 @@ function UpdateParticles()
 
 
 }
-

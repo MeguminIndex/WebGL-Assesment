@@ -85,7 +85,6 @@ function Input(e)
         ResetTanks();
        
      }
-
      else if(e.key == "q")
      {
         lookAtOffset.x -= camRotateSpeed *deltaTime;
